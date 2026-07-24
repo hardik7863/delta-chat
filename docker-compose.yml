@@ -1,0 +1,15 @@
+services:
+  delta-chat:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # Provider is swappable; defaults to the offline `echo` stub so it runs with no key.
+      DELTA_LLM_PROVIDER: ${DELTA_LLM_PROVIDER:-echo}
+      DELTA_LLM_MODEL: ${DELTA_LLM_MODEL:-claude-opus-4-8}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ./runs:/app/runs                 # persist per-request traces
+      - ./eval/results:/app/eval/results # persist scorecards
+    # `docker compose up` serves /chat, /delta, /metrics, /trace/{id} on :8000
+    # one-shot eval:  docker compose run --rm delta-chat python -m eval.run_eval
