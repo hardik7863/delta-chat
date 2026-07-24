@@ -14,12 +14,29 @@ import json
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
 from . import pipeline
 from .config import settings
 
 api = FastAPI(title="Delta-Chat", version="0.1.0")
+_STATIC = Path(__file__).parent / "static"
+
+
+@api.get("/", response_class=HTMLResponse)
+def home():
+    """Minimal served UI: compute a delta and chat over it in the browser."""
+    return (_STATIC / "index.html").read_text()
+
+
+@api.get("/report/{pair}", response_class=HTMLResponse)
+def report(pair: str):
+    run, _ = _get(pair)
+    p = Path(run.report_paths.get("html", ""))
+    if not p.exists():
+        raise HTTPException(404, "report not found")
+    return p.read_text()
 _INDICES: dict = {}  # pair -> (DeltaRun, RetrievalIndex) cache
 
 
