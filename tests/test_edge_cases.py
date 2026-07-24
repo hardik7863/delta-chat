@@ -150,3 +150,11 @@ def test_offdomain_below_gate(index, q):
 def test_indomain_above_gate(index, q):
     from src.config import settings
     assert index.search(q)[0][1] >= settings.retrieval_min_score
+
+
+def test_retrieval_finds_answer_chunk_high(index):
+    from eval.metrics import retrieval_rank, retrieval_report
+    rk = retrieval_rank(index, "which valve was removed?", ["43BL9070", "removed"])
+    assert rk is not None and rk <= 3, "answer-bearing chunk must rank in the top 3"
+    rep = retrieval_report([1, 2, None])
+    assert rep["hit@1"] == round(1 / 3, 3) and rep["found"] == 2
