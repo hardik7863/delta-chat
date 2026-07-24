@@ -61,7 +61,7 @@ def _get(pair: str):
 
 @api.get("/healthz")
 def healthz():
-    return {"ok": True}
+    return {"ok": True, "provider": settings.llm_provider, "model": settings.llm_model}
 
 
 @api.post("/delta")
