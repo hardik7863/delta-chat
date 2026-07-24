@@ -1,0 +1,7 @@
+{"pair": "pair1", "question": "Did any line size change, and to what?", "key_facts": ["yes", "10", "8"], "expect_refusal": false, "expect_source": "DELTA"}
+{"pair": "pair1", "question": "Which valve was removed in the revision?", "key_facts": ["43BL9070", "removed"], "expect_refusal": false, "expect_source": "DELTA"}
+{"pair": "pair1", "question": "Was any new instrument added? Which tag?", "key_facts": ["PT-9099", "added"], "expect_refusal": false, "expect_source": "DELTA"}
+{"pair": "pair1", "question": "Did the HH setpoint change, and from what to what?", "key_facts": ["245", "300"], "expect_refusal": false, "expect_source": "DELTA"}
+{"pair": "pair1", "question": "Which line had its piping spec changed?", "key_facts": ["9029", "AC21S", "GC11S"], "expect_refusal": false, "expect_source": "DELTA"}
+{"pair": "pair1", "question": "Did valve 26BL9073 move position?", "key_facts": ["yes", "moved"], "expect_refusal": false, "expect_source": "DELTA"}
+{"pair": "pair1", "question": "What is the capital of France?", "key_facts": [], "expect_refusal": true, "expect_source": null}
