@@ -45,13 +45,25 @@ def _labeled_pairs() -> list[dict]:
     return out
 
 
-def _load_qa() -> list[dict]:
+def _load_jsonl(pattern: str) -> list[dict]:
     out = []
-    for f in sorted(glob.glob("eval/datasets/*_qa.jsonl")):
+    for f in sorted(glob.glob(pattern)):
         for line in Path(f).read_text().splitlines():
             if line.strip():
                 out.append(json.loads(line))
     return out
+
+
+def _load_qa() -> list[dict]:
+    return _load_jsonl("eval/datasets/*_qa.jsonl")
+
+
+def _percentile(xs: list[float], p: float) -> float:
+    if not xs:
+        return 0.0
+    s = sorted(xs)
+    i = min(len(s) - 1, int(round((p / 100) * (len(s) - 1))))
+    return round(s[i], 2)
 
 
 def run() -> dict:
@@ -92,10 +104,32 @@ def run() -> dict:
     console.print(f"judge agreement with gold: [bold]{agree:.0%}[/] "
                   f"({'lexical fallback' if llm.provider=='echo' else 'LLM judge'})\n")
 
+    # ---- retrieval quality (bonus) ----
+    console.rule("[bold]Retrieval quality")
+    by_pair_index: dict = {}
+
+    def _index_for(pair: str):
+        if pair not in by_pair_index:
+            r = pipeline.run_delta(pair, write=False)
+            by_pair_index[pair] = (r, pipeline.build_index(r))
+        return by_pair_index[pair]
+
+    ranks = []
+    rtable = Table("query", "rank of answer-bearing chunk")
+    for item in _load_jsonl("eval/datasets/*_retrieval.jsonl"):
+        _, index = _index_for(item["pair"])
+        rk = metrics.retrieval_rank(index, item["query"], item["gold_all"])
+        ranks.append(rk)
+        rtable.add_row(item["query"][:48], str(rk) if rk else "not retrieved")
+    console.print(rtable)
+    rq = metrics.retrieval_report(ranks)
+    results["retrieval"] = rq
+    console.print(f"[bold]Retrieval: hit@1={rq['hit@1']:.2f} hit@3={rq['hit@3']:.2f} "
+                  f"hit@5={rq['hit@5']:.2f} MRR={rq['mrr']:.2f} mean_rank={rq['mean_rank']}[/]\n")
+
     # ---- chat metrics ----
     console.rule("[bold]Chat metrics")
     qa = _load_qa()
-    by_pair_index: dict = {}
     n = grounded = correct_ans = refusal_ok = cite_valid = cite_total = 0
     failures = []
     ctable = Table("question", "refuse?", "grounded", "correct", "cites")
@@ -142,6 +176,52 @@ def run() -> dict:
                   f"groundedness={results['chat']['groundedness']:.2f} "
                   f"citation_acc={results['chat']['citation_accuracy']:.2f} "
                   f"refusal_acc={results['chat']['refusal_accuracy']:.2f}[/]")
+
+    # ---- cost / latency budget analysis (bonus) ----
+    console.rule("[bold]Cost / latency budget")
+    BUDGET = {"delta_ms": 5000, "chat_ms": 8000, "cost_per_query_usd": 0.02}
+    # delta-stage latency across the labeled pairs
+    delta_ms, ingest_ms = [], []
+    for label in _labeled_pairs():
+        run = pipeline.run_delta(label["pair"], write=False)
+        for sp in run.trace.to_dict()["spans"]:
+            if sp["name"] == "delta":
+                delta_ms.append(sp["duration_ms"])
+            if sp["name"] == "ingest":
+                ingest_ms.append(sp["duration_ms"])
+    # chat latency + cost over a few real requests
+    chat_ms, chat_cost = [], []
+    probe_qs = ["what changed between the revisions?", "which valve was removed?",
+                "did any line size change?"]
+    for q in probe_qs:
+        r, index = _index_for("pair1")
+        _, tr = pipeline.answer("pair1", q, run=r, index=index, llm=llm)
+        t = tr.totals()
+        chat_ms.append(t["wall_ms"])
+        chat_cost.append(t["cost_usd"])
+
+    btable = Table("stage", "p50 ms", "p95 ms", "budget", "verdict")
+    def _verdict(p95, budget):
+        return "[green]PASS[/]" if p95 <= budget else "[red]OVER[/]"
+    btable.add_row("ingest (per doc)", str(_percentile(ingest_ms, 50)),
+                   str(_percentile(ingest_ms, 95)), "-", "-")
+    btable.add_row("delta", str(_percentile(delta_ms, 50)), str(_percentile(delta_ms, 95)),
+                   f"{BUDGET['delta_ms']}", _verdict(_percentile(delta_ms, 95), BUDGET["delta_ms"]))
+    btable.add_row("chat (retrieve+LLM)", str(_percentile(chat_ms, 50)),
+                   str(_percentile(chat_ms, 95)), f"{BUDGET['chat_ms']}",
+                   _verdict(_percentile(chat_ms, 95), BUDGET["chat_ms"]))
+    console.print(btable)
+    mean_cost = round(sum(chat_cost) / len(chat_cost), 5) if chat_cost else 0
+    cost_verdict = "PASS" if mean_cost <= BUDGET["cost_per_query_usd"] else "OVER"
+    results["cost_latency"] = {
+        "budget": BUDGET,
+        "delta_ms_p50": _percentile(delta_ms, 50), "delta_ms_p95": _percentile(delta_ms, 95),
+        "chat_ms_p50": _percentile(chat_ms, 50), "chat_ms_p95": _percentile(chat_ms, 95),
+        "mean_cost_per_query_usd": mean_cost, "cost_verdict": cost_verdict,
+        "provider": llm.provider,
+    }
+    console.print(f"[bold]Cost: ${mean_cost:.5f}/query (budget ${BUDGET['cost_per_query_usd']}) "
+                  f"→ {cost_verdict}[/]  [dim](provider={llm.provider})[/]\n")
 
     # ---- candid failure table (rubric rewards honesty) ----
     if failures:

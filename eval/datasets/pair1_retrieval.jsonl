@@ -1,0 +1,6 @@
+{"pair": "pair1", "query": "did any line size change?", "gold_all": ["9025", "size"]}
+{"pair": "pair1", "query": "which valve was removed?", "gold_all": ["43BL9070", "removed"]}
+{"pair": "pair1", "query": "what new instrument was added?", "gold_all": ["PT-9099", "added"]}
+{"pair": "pair1", "query": "did the HH setpoint change?", "gold_all": ["HH", "300"]}
+{"pair": "pair1", "query": "which line had a spec change?", "gold_all": ["9029", "spec"]}
+{"pair": "pair1", "query": "did any valve move?", "gold_all": ["26BL9073", "move"]}

@@ -126,3 +126,32 @@ def judge_correct(question: str, key_facts: list[str], answer: str, llm) -> bool
 def valid_citations(citations: list[str], valid_ids: set[str]) -> tuple[int, int]:
     """(# valid citations, # total citations)."""
     return sum(1 for c in citations if c in valid_ids), len(citations)
+
+
+# ---- retrieval quality ---------------------------------------------------------
+
+def retrieval_rank(index, query: str, gold_all: list[str]) -> int | None:
+    """1-based rank of the first retrieved chunk that contains ALL gold substrings
+    (case-insensitive), scanning the full ranking. None if never retrieved.
+
+    Measures whether retrieval surfaces the answer-bearing source at all, and how high —
+    which is what grounded chat depends on, upstream of the LLM."""
+    hits = index.search(query, top_k=len(index.chunks))
+    gold = [g.lower() for g in gold_all]
+    for rank, (chunk, _score) in enumerate(hits, start=1):
+        t = chunk.text.lower()
+        if all(g in t for g in gold):
+            return rank
+    return None
+
+
+def retrieval_report(ranks: list[int | None], ks=(1, 3, 5)) -> dict:
+    """Aggregate hit@k, MRR, and mean rank over a set of queries."""
+    n = len(ranks)
+    found = [r for r in ranks if r is not None]
+    out = {"n": n, "found": len(found),
+           "mrr": round(sum(1.0 / r for r in found) / n, 3) if n else 0.0,
+           "mean_rank": round(sum(found) / len(found), 2) if found else None}
+    for k in ks:
+        out[f"hit@{k}"] = round(sum(1 for r in found if r <= k) / n, 3) if n else 0.0
+    return out
