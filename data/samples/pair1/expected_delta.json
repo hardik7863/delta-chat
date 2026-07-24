@@ -1,0 +1,67 @@
+{
+  "pair": "pair1",
+  "pid_a": "/Users/hardikbatwal/KVG/delta-chat/data/samples/pair1/revA.pdf",
+  "pid_b": "/Users/hardikbatwal/KVG/delta-chat/data/samples/pair1/revB.pdf",
+  "rev_a": "A",
+  "rev_b": "B",
+  "changes": [
+    {
+      "op": "modified",
+      "element_type": "line",
+      "subtype": "attribute",
+      "identity": "VF-43-9025",
+      "field_diffs": [
+        {
+          "field": "size",
+          "before": "10\"",
+          "after": "8\""
+        }
+      ]
+    },
+    {
+      "op": "modified",
+      "element_type": "line",
+      "subtype": "attribute",
+      "identity": "VF-43-9029",
+      "field_diffs": [
+        {
+          "field": "spec",
+          "before": "AC21S",
+          "after": "GC11S"
+        }
+      ]
+    },
+    {
+      "op": "modified",
+      "element_type": "setpoint",
+      "subtype": "attribute",
+      "identity": "HH=245",
+      "field_diffs": [
+        {
+          "field": "setpoint",
+          "before": "HH=245",
+          "after": "HH=300"
+        }
+      ]
+    },
+    {
+      "op": "removed",
+      "element_type": "valve",
+      "identity": "43BL9070",
+      "field_diffs": []
+    },
+    {
+      "op": "modified",
+      "element_type": "valve",
+      "subtype": "moved",
+      "identity": "26BL9073",
+      "field_diffs": []
+    },
+    {
+      "op": "added",
+      "element_type": "instrument",
+      "identity": "PT-9099",
+      "field_diffs": []
+    }
+  ]
+}
